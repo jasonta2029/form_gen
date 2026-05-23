@@ -1,0 +1,32 @@
+{
+  "name": "formflow-client",
+  "private": true,
+  "version": "1.0.0",
+  "description": "FormFlow — Dance Formation Planner. React client for creating, editing, and exporting dance formations with AI-assisted generation and center-time balancing.",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.23.1",
+    "axios": "^1.7.2",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^2.5.1",
+    "react-dnd": "^16.0.1",
+    "react-dnd-html5-backend": "^16.0.1"
+  },
+  "devDependencies": {
+    "vite": "^5.3.1",
+    "@vitejs/plugin-react": "^4.3.1",
+    "eslint": "^8.57.0",
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "eslint-plugin-react-hooks": "^4.6.2",
+    "eslint-plugin-react-refresh": "^0.4.7"
+  }
+}
