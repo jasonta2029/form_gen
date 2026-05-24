@@ -9,13 +9,17 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from database import get_db
 from models.project import Project
+from models.formation import Formation
+from models.position import DancerPosition
 from schemas.project import (
     ProjectCreate,
     ProjectUpdate,
     ProjectResponse,
+    ProjectDetailResponse,
     ProjectListResponse,
 )
 
@@ -37,21 +41,29 @@ async def list_projects(
     )
     projects = result.scalars().all()
     return ProjectListResponse(
-        items=[ProjectResponse.model_validate(p) for p in projects],
+        projects=[ProjectResponse.model_validate(p) for p in projects],
         total=total,
     )
 
 
-@router.get("/{project_id}", response_model=ProjectResponse)
+@router.get("/{project_id}", response_model=ProjectDetailResponse)
 async def get_project(
     project_id: int,
     db: AsyncSession = Depends(get_db),
-) -> ProjectResponse:
-    """Return a single project by ID."""
-    project = await db.get(Project, project_id)
+) -> ProjectDetailResponse:
+    """Return a single project with all dancers and formations (including positions)."""
+    result = await db.execute(
+        select(Project)
+        .options(
+            selectinload(Project.dancers),
+            selectinload(Project.formations).selectinload(Formation.positions),
+        )
+        .where(Project.id == project_id)
+    )
+    project = result.scalar_one_or_none()
     if not project:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
-    return ProjectResponse.model_validate(project)
+    return ProjectDetailResponse.model_validate(project)
 
 
 @router.post("/", response_model=ProjectResponse, status_code=status.HTTP_201_CREATED)

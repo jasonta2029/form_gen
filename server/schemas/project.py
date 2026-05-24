@@ -7,6 +7,9 @@ from typing import List, Optional
 
 from pydantic import BaseModel, Field
 
+from schemas.dancer import DancerResponse
+from schemas.formation import FormationWithPositions
+
 
 class ProjectCreate(BaseModel):
     """Request body for creating a new project."""
@@ -36,7 +39,13 @@ class ProjectResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class ProjectDetailResponse(ProjectResponse):
+    """Full project including dancers and formations with their positions."""
+    dancers: List[DancerResponse] = []
+    formations: List[FormationWithPositions] = []
+
+
 class ProjectListResponse(BaseModel):
-    """Paginated list of projects."""
-    items: List[ProjectResponse]
+    """Paginated list of projects — key is 'projects' to match the frontend."""
+    projects: List[ProjectResponse]
     total: int

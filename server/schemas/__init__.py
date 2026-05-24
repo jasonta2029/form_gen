@@ -2,7 +2,7 @@
 schemas — Pydantic schemas (request/response models) for the FormFlow API.
 """
 
-from schemas.project import ProjectCreate, ProjectUpdate, ProjectResponse, ProjectListResponse
+from schemas.project import ProjectCreate, ProjectUpdate, ProjectResponse, ProjectDetailResponse, ProjectListResponse
 from schemas.dancer import DancerCreate, DancerUpdate, DancerResponse
 from schemas.formation import (
     FormationCreate, FormationUpdate, FormationResponse,
@@ -20,7 +20,7 @@ from schemas.export import ExportImageRequest, ExportPDFRequest, ExportResponse
 
 __all__ = [
     # project
-    "ProjectCreate", "ProjectUpdate", "ProjectResponse", "ProjectListResponse",
+    "ProjectCreate", "ProjectUpdate", "ProjectResponse", "ProjectDetailResponse", "ProjectListResponse",
     # dancer
     "DancerCreate", "DancerUpdate", "DancerResponse",
     # formation
