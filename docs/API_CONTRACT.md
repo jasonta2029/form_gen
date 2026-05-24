@@ -15,10 +15,12 @@ This document outlines the strict API boundaries between the React frontend (`/c
 | **POST** | `/api/projects/{project_id}/dancers` | Create/add a dancer to a project. | `201 Created` |
 | **PUT** | `/api/projects/{project_id}/dancers/{dancer_id}` | Edit dancer metadata (e.g. name, color). | `200 OK` |
 | **DELETE** | `/api/projects/{project_id}/dancers/{dancer_id}` | Remove a dancer from the project. | `204 No Content` |
+| **DELETE** | `/api/projects/{project_id}/dancers/bulk` | Remove multiple dancers from the project. | `204 No Content` |
 | **GET** | `/api/projects/{project_id}/formations` | List formations alongside positioning arrays. | `200 OK` |
 | **POST** | `/api/projects/{project_id}/formations` | Create a new formation snapshot. | `201 Created` |
 | **PUT** | `/api/projects/{project_id}/formations/{formation_id}` | Edit formation metadata (name, timing). | `200 OK` |
 | **DELETE** | `/api/projects/{project_id}/formations/{formation_id}` | Remove a formation snapshot. | `204 No Content` |
+| **POST** | `/api/projects/{project_id}/formations/{formation_id}/duplicate` | Duplicate a formation with all its positions. | `201 Created` |
 | **PUT** | `/api/projects/{project_id}/formations/reorder` | Update the sorting order index of snapshots. | `200 OK` |
 | **PUT** | `/api/projects/{project_id}/formations/{formation_id}/positions` | Batch update positioning coordinates for a snapshot. | `200 OK` |
 | **POST** | `/api/projects/{project_id}/ai/generate` | Generate random/symmetric placements on the grid. | `200 OK` |

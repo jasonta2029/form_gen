@@ -111,7 +111,65 @@ async def delete_formation(
     await db.delete(formation)
 
 
-@router.post("/reorder", response_model=List[FormationResponse])
+@router.post("/{formation_id}/duplicate", response_model=FormationResponse, status_code=status.HTTP_201_CREATED)
+async def duplicate_formation(
+    project_id: int,
+    formation_id: int,
+    db: AsyncSession = Depends(get_db),
+) -> FormationResponse:
+    """Duplicate a formation with all its positions."""
+    await _get_project_or_404(project_id, db)
+
+    formation = await db.get(Formation, formation_id)
+    if not formation or formation.project_id != project_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Formation not found")
+
+    # Get the highest order_index to place the duplicate at the end
+    result = await db.execute(
+        select(Formation.order_index)
+        .where(Formation.project_id == project_id)
+        .order_by(Formation.order_index.desc())
+        .limit(1)
+    )
+    max_order = result.scalar_one_or_none() or -1
+
+    # Create duplicate formation
+    duplicate = Formation(
+        project_id=project_id,
+        name=f"{formation.name} (Copy)",
+        order_index=max_order + 1,
+        timestamp_start=formation.timestamp_start,
+        timestamp_end=formation.timestamp_end
+    )
+    db.add(duplicate)
+    await db.flush()
+    await db.refresh(formation)  # Get the formation with ID
+
+    # Import here to avoid circular imports
+    from models.position import DancerPosition
+
+    # Duplicate all positions
+    result = await db.execute(
+        select(DancerPosition).where(DancerPosition.formation_id == formation_id)
+    )
+    positions = result.scalars().all()
+
+    for pos in positions:
+        duplicate_pos = DancerPosition(
+            formation_id=duplicate.id,
+            dancer_id=pos.dancer_id,
+            x=pos.x,
+            y=pos.y
+        )
+        db.add(duplicate_pos)
+
+    await db.flush()
+    await db.refresh(duplicate)
+
+    return FormationResponse.model_validate(duplicate)
+
+
+@router.put("/reorder", response_model=List[FormationResponse])
 async def reorder_formations(
     project_id: int,
     body: ReorderRequest,

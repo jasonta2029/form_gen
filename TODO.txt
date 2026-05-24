@@ -1,0 +1,68 @@
+Build the front end of this project. The backend and file structure has already been built and established. Make sure to build a plan.md, status.md, handoff.md to make communication between prompts more efficient.
+
+
+You are an expert software architect and full-stack developer specializing in creative tools for performing arts. Build a complete, functional web-based dance formation planning application that uses AI to help choreographers design formations and transitions for groups of dancers.
+
+## Architecture & Codebase Structure
+
+Design the codebase with a **strict frontend/backend separation** to support parallel development by two agents with minimal merge conflicts:
+
+- **Frontend:** React application in its own directory (`/client`), using an interactive SVG or canvas stage grid with drag-and-drop dancer repositioning. All UI state, components, and rendering logic live here. Communicate with the backend exclusively via a well-defined REST API (or WebSocket where needed for animation).
+- **Backend:** Node.js or Python (whichever best suits the AI integration) in its own directory (`/server`), exposing clearly documented API endpoints. All AI formation logic, center time calculations, and data persistence live here.
+- Define a clear **API contract** (endpoint list with request/response shapes) as part of the setup documentation so both agents can work independently without stepping on each other.
+- Avoid shared configuration files or cross-directory imports that would cause merge conflicts.
+
+## Core Inputs
+
+- **Number of dancers** with optional name assignment per dancer
+- **Music sample** (audio file upload or user-defined timestamp markers) to inform timing and transition pacing
+
+## Stage Visualization
+
+Render a top-down grid stage using `dance pic 1.PNG` and `dance pic 2.PNG` as the visual reference for layout, dancer icon style, and labeling conventions:
+
+- Bounded stage area labeled **BACKSTAGE** (top) and **AUDIENCE** (bottom)
+- Coordinate grid system for precise dancer placement
+- Each dancer represented as a **numbered, colored circular icon** with their name
+- A **center/focal point marker** (red X) indicating the key stage position
+- Formation snapshots are labeled (e.g., "Intro," "She's Confident")
+
+Use `dance pic 1.PNG` (Intro formation, 21 dancers in scattered positions) and `dance pic 2.PNG` (V-shape formation titled "She's Confident") as direct visual references when implementing the stage grid layout, dancer icon style, and labeling conventions.
+
+## AI-Assisted Formation Generation
+
+The AI layer (backend) should:
+
+- Generate multiple formation snapshots across the song's timeline, triggered by musical phrases or user-defined timestamps
+- Suggest smooth transition paths between formations (minimizing crossing paths, balancing stage weight)
+- Generate named formation effects (e.g., V-shape, arc, cluster, split, diagonal) with labeled snapshots
+
+## Center Time Tracking & Balancing
+
+- **Track center time** per dancer — defined as time spent at or near the red X focal point across all formation snapshots
+- When a choreographer clicks any dancer icon, display a panel showing that dancer's **total center time and percentage share** relative to the full group
+- Provide a **center time balancing tool** to adjust formations so center time is distributed according to the choreographer's intent — either equitably or weighted toward specific individuals
+- **Flag dancers** who are significantly over- or under-represented in center time relative to the choreographer's target distribution
+
+## Technical Requirements
+
+- **Frontend (`/client`):** React, SVG or canvas stage grid, drag-and-drop repositioning, transition animation between consecutive formation snapshots
+- **Backend (`/server`):** Node.js or Python, AI/LLM or optimization-based formation suggestion engine, center time computation, REST API endpoints
+- **Export:** Formation sheets exportable as images or a PDF timeline
+
+## Deliverables
+
+Provide the full code across all necessary files, clearly labeled by path, with:
+
+- Setup instructions for both `/client` and `/server`
+- The API contract document listing all endpoints, request shapes, and response shapes
+- Clean, readable, production-quality code with clear component separation
+
+Add some of these other things too
+
+  The highest value things in order:
+
+  1. Fix the formation reorder mismatch (will definitely break the frontend)
+  2. Add duplicate formation endpoint (frontend UI already has the button)
+  3. Write tests for export, audio upload, and transitions
+  4. Add a DELETE /api/projects/{id}/dancers/bulk for removing multiple dancers at once

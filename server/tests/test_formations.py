@@ -120,3 +120,115 @@ def test_positions_idempotent_replace(client, project_id, dancer_ids):
 
 def test_formation_not_found(client, project_id):
     assert client.get(f"/api/projects/{project_id}/formations/999999").status_code == 404
+
+
+def test_duplicate_formation(client, project_id, dancer_ids):
+    """Test duplicating a formation with all its positions."""
+    # Create a formation with positions
+    form_resp = client.post(
+        f"/api/projects/{project_id}/formations/",
+        json={"name": "Original Formation", "order_index": 0}
+    )
+    assert form_resp.status_code == 201
+    formation = form_resp.json()
+    fid = formation["id"]
+
+    # Add positions to the formation
+    positions = [
+        {"dancer_id": dancer_ids[0], "x": 0.0, "y": 0.0},
+        {"dancer_id": dancer_ids[1], "x": 5.0, "y": 0.0},
+    ]
+    pos_resp = client.put(
+        f"/api/projects/{project_id}/formations/{fid}/positions/",
+        json=positions
+    )
+    assert pos_resp.status_code == 200
+
+    # Duplicate the formation
+    dup_resp = client.post(
+        f"/api/projects/{project_id}/formations/{fid}/duplicate"
+    )
+    assert dup_resp.status_code == 201
+    duplicate = dup_resp.json()
+
+    # Verify duplicate properties
+    assert duplicate["name"] == "Original Formation (Copy)"
+    assert duplicate["order_index"] == 1  # Should be after original
+    assert duplicate["timestamp_start"] == formation["timestamp_start"]
+    assert duplicate["timestamp_end"] == formation["timestamp_end"]
+    assert duplicate["id"] != fid  # Different ID
+
+    # Verify positions were duplicated
+    dup_positions_resp = client.get(
+        f"/api/projects/{project_id}/formations/{duplicate['id']}/positions/"
+    )
+    assert dup_positions_resp.status_code == 200
+    dup_positions = dup_positions_resp.json()
+    assert len(dup_positions) == 2
+
+    # Check that positions match original
+    dup_xs = {p["dancer_id"]: p["x"] for p in dup_positions}
+    assert dup_xs[dancer_ids[0]] == 0.0
+    assert dup_xs[dancer_ids[1]] == 5.0
+
+
+def test_reorder_formations(client, project_id):
+    """Test reordering formations."""
+    # Create three formations
+    formation_ids = []
+    for i in range(3):
+        resp = client.post(
+            f"/api/projects/{project_id}/formations/",
+            json={"name": f"Formation {i}", "order_index": i}
+        )
+        assert resp.status_code == 201
+        formation_ids.append(resp.json()["id"])
+
+    # Verify initial order
+    resp = client.get(f"/api/projects/{project_id}/formations/")
+    assert resp.status_code == 200
+    formations = resp.json()
+    assert len(formations) == 3
+    assert [f["id"] for f in formations] == formation_ids
+    assert [f["order_index"] for f in formations] == [0, 1, 2]
+
+    # Reorder: put formation 2 first, then 0, then 1
+    new_order = [formation_ids[2], formation_ids[0], formation_ids[1]]
+    resp = client.put(
+        f"/api/projects/{project_id}/formations/reorder",
+        json={"formation_ids": new_order}
+    )
+    assert resp.status_code == 200
+    reordered = resp.json()
+
+    # Verify new order
+    assert len(reordered) == 3
+    assert [f["id"] for f in reordered] == new_order
+    assert [f["order_index"] for f in reordered] == [0, 1, 2]
+
+    # Verify persistence by getting formations again
+    resp = client.get(f"/api/projects/{project_id}/formations/")
+    assert resp.status_code == 200
+    formations = resp.json()
+    assert [f["id"] for f in formations] == new_order
+    assert [f["order_index"] for f in formations] == [0, 1, 2]
+
+
+def test_reorder_formations_invalid_id(client, project_id):
+    """Test reordering with invalid formation ID."""
+    # Create one formation
+    resp = client.post(
+        f"/api/projects/{project_id}/formations/",
+        json={"name": "Formation 0", "order_index": 0}
+    )
+    assert resp.status_code == 201
+    formation = resp.json()
+    fid = formation["id"]
+
+    # Try to reorder with invalid ID
+    resp = client.put(
+        f"/api/projects/{project_id}/formations/reorder",
+        json={"formation_ids": [fid, 999999]}  # 999999 doesn't exist
+    )
+    assert resp.status_code == 400
+    assert "not found in project" in resp.json()["detail"]

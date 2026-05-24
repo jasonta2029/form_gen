@@ -61,11 +61,11 @@ export async function deleteFormation(projectId, formationId) {
 /**
  * Reorder formations within a project.
  * @param {string}   projectId
- * @param {string[]} orderedIds — Formation IDs in desired order.
+ * @param {string[]} formationIds — Formation IDs in desired order.
  * @returns {Promise<void>}
  */
-export async function reorderFormations(projectId, orderedIds) {
+export async function reorderFormations(projectId, formationIds) {
   return apiClient.put(`/projects/${projectId}/formations/reorder`, {
-    orderedIds,
+    formation_ids: formationIds,
   });
 }
