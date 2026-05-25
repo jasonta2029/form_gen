@@ -15,7 +15,7 @@ export const exportApi = {
       formation_id: formationId,
       format,
     }, { responseType: 'blob' });
-    return response.data;
+    return response;
   },
 
   /**
@@ -23,11 +23,11 @@ export const exportApi = {
    * @param {string|number} projectId 
    * @param {boolean} includeTransitions 
    */
-  exportAsPDF: async (projectId, includeTransitions = true) => {
+  exportAsPDF: async (projectId, includeTimeline = true) => {
     const response = await client.post(`/projects/${projectId}/export/pdf`, {
-      include_transitions: includeTransitions,
+      include_timeline: includeTimeline,
     }, { responseType: 'blob' });
-    return response.data;
+    return response;
   },
 
   /**
@@ -36,7 +36,7 @@ export const exportApi = {
    */
   exportAllFormations: async (projectId) => {
     const response = await client.post(`/projects/${projectId}/export/all`, {}, { responseType: 'blob' });
-    return response.data;
+    return response;
   }
 };
 

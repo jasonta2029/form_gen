@@ -1,19 +1,18 @@
-/**
- * Dashboard.jsx — Main Landing dashboard displaying all stored choreography projects.
- * Supports creating new project instances.
- */
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Users, ArrowRight, Plus, X, Loader2 } from 'lucide-react';
 import projectsApi from '../api/projects';
 import LoadingSpinner from '../components/common/LoadingSpinner';
+import { useToast } from '../context/ToastContext';
 
 export const Dashboard = () => {
   const navigate = useNavigate();
+  const { showToast } = useToast();
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [creating, setCreating] = useState(false);
   const [error, setError] = useState(null);
-  
-  // Modal toggle settings options state
+
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [projectName, setProjectName] = useState('');
   const [projectDesc, setProjectDesc] = useState('');
@@ -32,52 +31,60 @@ export const Dashboard = () => {
     }
   };
 
-  useEffect(() => {
-    fetchProjects();
-  }, []);
+  useEffect(() => { fetchProjects(); }, []);
 
   const handleCreateProject = async (e) => {
     e.preventDefault();
     if (!projectName.trim()) return;
-
+    setCreating(true);
     try {
       const response = await projectsApi.createProject({
         name: projectName.trim(),
         description: projectDesc.trim(),
-        num_dancers: parseInt(numDancers)
+        num_dancers: parseInt(numDancers),
       });
-      // Direct routing redirect to Studio editor
+      showToast(`"${response.name}" created!`, 'success');
       navigate(`/project/${response.id}`);
     } catch (err) {
-      console.error("Failed to construct project instance:", err);
-      alert("Failed to build project. Please check network.");
+      console.error(err);
+      showToast('Failed to create project', 'error');
+    } finally {
+      setCreating(false);
     }
+  };
+
+  const closeModal = () => {
+    setShowCreateModal(false);
+    setProjectName('');
+    setProjectDesc('');
+    setNumDancers(12);
   };
 
   return (
     <div className="min-h-screen bg-[#121214] text-white p-8 font-sans">
       <div className="max-w-6xl mx-auto space-y-8 select-none">
-        
-        {/* Header Branding section banner */}
+
+        {/* Header */}
         <div className="flex items-center justify-between border-b border-[#23232f] pb-6">
           <div>
-            <h1 className="text-3xl font-black tracking-tight text-white flex items-center">
+            <h1 className="text-3xl font-black tracking-tight text-white">
               Form<span className="text-[#ff2a7f]">Flow</span>
             </h1>
             <p className="text-xs text-[#b3b3cb] uppercase tracking-wider font-semibold mt-1">
-              AI-Powered Choreography formation planner
+              AI-Powered Choreography Formation Planner
             </p>
           </div>
 
           <button
             onClick={() => setShowCreateModal(true)}
-            className="bg-[#ff2a7f] hover:bg-[#e0206f] text-white font-extrabold px-5 py-2.5 rounded-lg text-sm transition-all shadow-[0_0_12px_rgba(255,42,127,0.3)] hover:scale-105"
+            className="flex items-center gap-2 bg-[#ff2a7f] hover:bg-[#e0206f] text-white font-bold px-5 py-2.5 rounded-lg text-sm transition-all shadow-[0_0_12px_rgba(255,42,127,0.3)] hover:shadow-[0_0_20px_rgba(255,42,127,0.4)] hover:scale-[1.02] cursor-pointer"
           >
-            + Create Studio
+            <Plus size={15} />
+            Create Studio
           </button>
         </div>
 
-        {/* Listings grids */}
+        {/* Project grid */}
         {loading ? (
           <div className="py-24">
             <LoadingSpinner message="Fetching show listings..." />
@@ -88,11 +95,12 @@ export const Dashboard = () => {
           </div>
         ) : projects.length === 0 ? (
           <div className="text-center py-20 bg-[#1a1a24] rounded-2xl border border-[#23232f] space-y-4">
-            <p className="text-sm text-[#b3b3cb]">No dance choreography shows registered yet.</p>
+            <p className="text-sm text-[#b3b3cb]">No choreography shows yet.</p>
             <button
               onClick={() => setShowCreateModal(true)}
-              className="bg-[#ff2a7f]/10 border border-[#ff2a7f] text-[#ff2a7f] hover:bg-[#ff2a7f]/20 font-bold px-4 py-2 rounded-lg text-xs"
+              className="inline-flex items-center gap-2 bg-[#ff2a7f]/10 border border-[#ff2a7f] text-[#ff2a7f] hover:bg-[#ff2a7f]/20 font-bold px-4 py-2 rounded-lg text-xs transition-colors cursor-pointer"
             >
+              <Plus size={13} />
               Start Your First Project
             </button>
           </div>
@@ -102,7 +110,7 @@ export const Dashboard = () => {
               <div
                 key={proj.id}
                 onClick={() => navigate(`/project/${proj.id}`)}
-                className="bg-[#1a1a24] border border-[#23232f] hover:border-[#ff2a7f] p-5 rounded-2xl cursor-pointer transition-all hover:scale-[1.02] flex flex-col justify-between h-44 text-left"
+                className="bg-[#1a1a24] border border-[#23232f] hover:border-[#ff2a7f]/60 p-5 rounded-2xl cursor-pointer transition-all hover:scale-[1.02] hover:shadow-[0_0_20px_rgba(255,42,127,0.1)] flex flex-col justify-between h-44 text-left group"
               >
                 <div>
                   <h3 className="font-extrabold text-lg truncate text-white">{proj.name}</h3>
@@ -110,55 +118,77 @@ export const Dashboard = () => {
                 </div>
 
                 <div className="flex items-center justify-between border-t border-[#272739] pt-3.5">
-                  <span className="text-xs font-bold text-[#b3b3cb]">👤 {proj.num_dancers} Dancers</span>
-                  <span className="text-[10px] text-gray-500">Edit Studio ➜</span>
+                  <span className="flex items-center gap-1.5 text-xs font-bold text-[#b3b3cb]">
+                    <Users size={12} />
+                    {proj.num_dancers} Dancers
+                  </span>
+                  <span className="flex items-center gap-1 text-[10px] text-[#6b6b8a] group-hover:text-[#ff2a7f] transition-colors">
+                    Edit Studio
+                    <ArrowRight size={11} />
+                  </span>
                 </div>
               </div>
             ))}
           </div>
         )}
 
-        {/* Modal additions prompts Overlay */}
+        {/* Create modal */}
         {showCreateModal && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-[#1a1a24] border border-[#2d2d3d] p-6 rounded-2xl w-full max-w-md text-left space-y-4">
+          <div
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+            onClick={(e) => e.target === e.currentTarget && closeModal()}
+          >
+            <div className="bg-[#1a1a24] border border-[#2d2d3d] p-6 rounded-2xl w-full max-w-md text-left space-y-4 animate-scale-in">
               <div className="flex items-center justify-between border-b border-[#2d2d3d] pb-3">
                 <h3 className="font-extrabold text-lg">Create New Show</h3>
-                <button onClick={() => setShowCreateModal(false)} className="text-gray-500 hover:text-white">✕</button>
+                <button
+                  onClick={closeModal}
+                  className="text-[#6b6b8a] hover:text-white transition-colors cursor-pointer p-1 rounded"
+                  aria-label="Close"
+                >
+                  <X size={16} />
+                </button>
               </div>
 
               <form onSubmit={handleCreateProject} className="space-y-4 text-xs">
                 <div>
-                  <label className="block text-[10px] uppercase font-bold text-[#b3b3cb] tracking-wider mb-1.5">Show Title</label>
+                  <label className="block text-[10px] uppercase font-bold text-[#b3b3cb] tracking-wider mb-1.5">
+                    Show Title <span className="text-[#ff2a7f]">*</span>
+                  </label>
                   <input
                     type="text"
                     value={projectName}
                     onChange={(e) => setProjectName(e.target.value)}
                     placeholder="e.g. She's Confident Tour"
-                    className="w-full bg-[#121214] border border-[#2d2d3d] text-white px-3.5 py-2.5 rounded-lg focus:outline-none focus:border-[#ff2a7f]"
+                    className="w-full bg-[#121214] border border-[#2d2d3d] text-white px-3.5 py-2.5 rounded-lg focus:outline-none focus:border-[#ff2a7f] transition-colors"
                     required
+                    autoFocus
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[10px] uppercase font-bold text-[#b3b3cb] tracking-wider mb-1.5">Description</label>
+                  <label className="block text-[10px] uppercase font-bold text-[#b3b3cb] tracking-wider mb-1.5">
+                    Description
+                  </label>
                   <textarea
                     value={projectDesc}
                     onChange={(e) => setProjectDesc(e.target.value)}
                     placeholder="Brief notes..."
-                    className="w-full bg-[#121214] border border-[#2d2d3d] text-white px-3.5 py-2.5 rounded-lg focus:outline-none focus:border-[#ff2a7f] h-20"
+                    className="w-full bg-[#121214] border border-[#2d2d3d] text-white px-3.5 py-2.5 rounded-lg focus:outline-none focus:border-[#ff2a7f] h-20 resize-none transition-colors"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[10px] uppercase font-bold text-[#b3b3cb] tracking-wider mb-1.5">Roster Size (Dancers)</label>
+                  <label className="block text-[10px] uppercase font-bold text-[#b3b3cb] tracking-wider mb-1.5">
+                    Roster Size <span className="text-[#ff2a7f]">*</span>
+                  </label>
                   <input
                     type="number"
                     min="1"
                     max="50"
                     value={numDancers}
                     onChange={(e) => setNumDancers(parseInt(e.target.value))}
-                    className="w-full bg-[#121214] border border-[#2d2d3d] text-white px-3.5 py-2.5 rounded-lg focus:outline-none focus:border-[#ff2a7f]"
+                    className="w-full bg-[#121214] border border-[#2d2d3d] text-white px-3.5 py-2.5 rounded-lg focus:outline-none focus:border-[#ff2a7f] transition-colors"
                     required
                   />
                 </div>
@@ -166,16 +196,17 @@ export const Dashboard = () => {
                 <div className="flex space-x-3 pt-2">
                   <button
                     type="button"
-                    onClick={() => setShowCreateModal(false)}
-                    className="flex-1 bg-[#272739] hover:bg-[#34344d] text-white py-2.5 rounded-lg font-bold"
+                    onClick={closeModal}
+                    className="flex-1 bg-[#272739] hover:bg-[#34344d] text-white py-2.5 rounded-lg font-bold transition-colors cursor-pointer"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
-                    className="flex-1 bg-[#ff2a7f] hover:bg-[#e0206f] text-white py-2.5 rounded-lg font-bold"
+                    disabled={creating || !projectName.trim()}
+                    className="flex-1 flex items-center justify-center gap-2 bg-[#ff2a7f] hover:bg-[#e0206f] disabled:opacity-50 disabled:cursor-not-allowed text-white py-2.5 rounded-lg font-bold transition-colors cursor-pointer"
                   >
-                    Build Show
+                    {creating ? <><Loader2 size={14} className="animate-spin" /> Building…</> : 'Build Show'}
                   </button>
                 </div>
               </form>

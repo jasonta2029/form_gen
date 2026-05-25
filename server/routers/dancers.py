@@ -7,7 +7,7 @@ Prefix: /api/projects/{project_id}/dancers
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database import get_db
@@ -93,6 +93,38 @@ async def update_dancer(
     return DancerResponse.model_validate(dancer)
 
 
+@router.delete("/bulk", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_dancers_bulk(
+    project_id: int,
+    dancer_ids: List[int],
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    """Remove multiple dancers from the project at once."""
+    await _get_project_or_404(project_id, db)
+
+    result = await db.execute(
+        select(Dancer.id).where(
+            Dancer.project_id == project_id,
+            Dancer.id.in_(dancer_ids)
+        )
+    )
+    valid_dancer_ids = {row[0] for row in result.fetchall()}
+
+    invalid_ids = set(dancer_ids) - valid_dancer_ids
+    if invalid_ids:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"The following dancer IDs do not belong to project {project_id}: {list(invalid_ids)}"
+        )
+
+    await db.execute(
+        delete(Dancer).where(
+            Dancer.project_id == project_id,
+            Dancer.id.in_(dancer_ids)
+        )
+    )
+
+
 @router.delete("/{dancer_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_dancer(
     project_id: int,
@@ -104,38 +136,3 @@ async def delete_dancer(
     if not dancer or dancer.project_id != project_id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Dancer not found")
     await db.delete(dancer)
-
-
-@router.delete("/bulk", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_dancers_bulk(
-    project_id: int,
-    dancer_ids: List[int],
-    db: AsyncSession = Depends(get_db),
-) -> None:
-    """Remove multiple dancers from the project at once."""
-    await _get_project_or_404(project_id, db)
-
-    # Validate that all dancers belong to this project
-    result = await db.execute(
-        select(Dancer.id).where(
-            Dancer.project_id == project_id,
-            Dancer.id.in_(dancer_ids)
-        )
-    )
-    valid_dancer_ids = {row[0] for row in result.fetchall()}
-
-    # Check if all requested IDs are valid
-    invalid_ids = set(dancer_ids) - valid_dancer_ids
-    if invalid_ids:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"The following dancer IDs do not belong to project {project_id}: {list(invalid_ids)}"
-        )
-
-    # Delete all valid dancers
-    await db.execute(
-        delete(Dancer).where(
-            Dancer.project_id == project_id,
-            Dancer.id.in_(dancer_ids)
-        )
-    )

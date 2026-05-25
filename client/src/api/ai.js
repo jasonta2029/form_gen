@@ -11,7 +11,7 @@ export const aiApi = {
    */
   generateFormation: async (projectId, params) => {
     const response = await client.post(`/projects/${projectId}/ai/generate`, params);
-    return response.data;
+    return response;
   },
 
   /**
@@ -21,7 +21,7 @@ export const aiApi = {
    */
   suggestTransitions: async (projectId, params) => {
     const response = await client.post(`/projects/${projectId}/ai/suggest-transitions`, params);
-    return response.data;
+    return response;
   },
 
   /**
@@ -35,7 +35,7 @@ export const aiApi = {
       template_name: templateName,
       params,
     });
-    return response.data;
+    return response;
   }
 };
 

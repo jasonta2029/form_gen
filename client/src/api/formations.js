@@ -69,3 +69,22 @@ export async function reorderFormations(projectId, formationIds) {
     formation_ids: formationIds,
   });
 }
+
+/**
+ * Duplicate an existing formation (copies all positions).
+ * @param {string} projectId
+ * @param {string} formationId
+ * @returns {Promise<Object>} The new duplicate formation.
+ */
+export async function duplicateFormation(projectId, formationId) {
+  return apiClient.post(`/projects/${projectId}/formations/${formationId}/duplicate`);
+}
+
+export default {
+  getFormations,
+  createFormation,
+  updateFormation,
+  deleteFormation,
+  reorderFormations,
+  duplicateFormation,
+};

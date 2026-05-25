@@ -25,7 +25,7 @@ export const MusicTimeline = ({
   };
 
   const handleAddMarkerPrompt = () => {
-    const markerName = prompt("Enter bookmark description:", `Marker @ ${currentTime.toFixed(1)}s`);
+    const markerName = prompt("Enter bookmark description:", `Marker @ ${(currentTime ?? 0).toFixed(1)}s`);
     if (markerName && onAddMarker) {
       onAddMarker({ name: markerName, timestamp: currentTime });
     }
@@ -49,7 +49,7 @@ export const MusicTimeline = ({
           <div>
             <h4 className="text-xs font-bold uppercase tracking-wider text-[#b3b3cb]">Music Track Player</h4>
             <span className="text-xs font-semibold text-white">
-              {currentTime.toFixed(1)}s / {duration > 0 ? duration.toFixed(1) : '0.0'}s
+              {(currentTime ?? 0).toFixed(1)}s / {duration > 0 ? duration.toFixed(1) : '0.0'}s
             </span>
           </div>
         </div>

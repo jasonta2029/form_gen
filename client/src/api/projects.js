@@ -63,3 +63,11 @@ export async function updateProject(id, data) {
 export async function deleteProject(id) {
   return apiClient.delete(`/projects/${id}`);
 }
+
+export default {
+  getProjects,
+  getProject,
+  createProject,
+  updateProject,
+  deleteProject,
+};

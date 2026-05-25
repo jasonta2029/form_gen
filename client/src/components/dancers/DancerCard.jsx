@@ -1,7 +1,5 @@
-/**
- * DancerCard.jsx — Individual list element inside the Dancer Panel side scroll list.
- */
 import React from 'react';
+import { X, AlertTriangle } from 'lucide-react';
 
 export const DancerCard = ({
   dancer,
@@ -21,15 +19,14 @@ export const DancerCard = ({
       }`}
     >
       <div className="flex items-center space-x-3">
-        {/* Dancer color circle */}
         <div
-          className="w-7 h-7 rounded-full flex items-center justify-center font-bold text-xs border text-white"
-          style={{ backgroundColor: dancer.color, borderColor: '#171721' }}
+          className="w-7 h-7 rounded-full flex items-center justify-center font-bold text-xs border-2 text-white flex-shrink-0"
+          style={{ backgroundColor: dancer.color, borderColor: 'rgba(255,255,255,0.15)' }}
         >
           {dancer.number}
         </div>
         <div>
-          <h4 className="font-semibold text-sm">{dancer.name}</h4>
+          <h4 className="font-semibold text-sm leading-tight">{dancer.name}</h4>
           <span className="text-[10px] text-[#b3b3cb] uppercase tracking-wider">
             {dancer.group || 'ensemble'}
           </span>
@@ -37,14 +34,14 @@ export const DancerCard = ({
       </div>
 
       <div className="flex items-center space-x-2">
-        {/* Exposure indicators */}
         <div className="text-right">
-          <div className={`text-xs font-bold ${isFlagged ? 'text-[#ff4747]' : 'text-[#10b981]'}`}>
+          <div className={`text-xs font-bold flex items-center gap-1 justify-end ${isFlagged ? 'text-red-400' : 'text-emerald-400'}`}>
+            {isFlagged && <AlertTriangle size={11} />}
             {centerTimePercentage.toFixed(0)}% center
           </div>
           {isFlagged && (
-            <span className="text-[9px] bg-[#5a1818]/60 border border-[#ff4747]/40 px-1 py-0.5 rounded text-[#ff4747] font-semibold animate-pulse">
-              Flagged
+            <span className="text-[9px] bg-red-900/30 border border-red-500/30 px-1.5 py-0.5 rounded text-red-400 font-semibold animate-pulse block mt-0.5">
+              Over-represented
             </span>
           )}
         </div>
@@ -57,9 +54,10 @@ export const DancerCard = ({
                 onDelete(dancer.id);
               }
             }}
-            className="text-gray-500 hover:text-red-500 p-1 transition-colors text-xs"
+            className="text-[#6b6b8a] hover:text-red-400 p-1 rounded transition-colors cursor-pointer"
+            aria-label={`Remove ${dancer.name}`}
           >
-            ✕
+            <X size={13} />
           </button>
         )}
       </div>

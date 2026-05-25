@@ -27,6 +27,7 @@ import ExportView from './pages/ExportView';
 // Context providers
 import { ProjectProvider } from './context/ProjectContext';
 import { StageProvider } from './context/StageContext';
+import { ToastProvider } from './context/ToastContext';
 
 /**
  * App — root component rendered by main.jsx.
@@ -34,6 +35,7 @@ import { StageProvider } from './context/StageContext';
  */
 export default function App() {
   return (
+    <ToastProvider>
     <ProjectProvider>
       <StageProvider>
         <Layout>
@@ -50,5 +52,6 @@ export default function App() {
         </Layout>
       </StageProvider>
     </ProjectProvider>
+    </ToastProvider>
   );
 }

@@ -10,12 +10,20 @@ from pydantic import BaseModel, Field
 from schemas.position import PositionResponse
 
 
+class PositionInput(BaseModel):
+    """Inline position entry used when creating a formation with initial positions."""
+    dancer_id: int
+    x: float = 0.0
+    y: float = 0.0
+
+
 class FormationCreate(BaseModel):
     """Request body for creating a new formation."""
     name: str = Field("Untitled", max_length=255)
     order_index: int = Field(0, ge=0)
     timestamp_start: Optional[float] = Field(None, ge=0.0)
     timestamp_end: Optional[float] = Field(None, ge=0.0)
+    positions: Optional[List[PositionInput]] = Field(default=None)
 
 
 class FormationUpdate(BaseModel):

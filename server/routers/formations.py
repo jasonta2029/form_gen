@@ -9,9 +9,11 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from database import get_db
 from models.formation import Formation
+from models.position import DancerPosition
 from models.project import Project
 from schemas.formation import (
     FormationCreate,
@@ -59,23 +61,73 @@ async def get_formation(
     formation = await db.get(Formation, formation_id)
     if not formation or formation.project_id != project_id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Formation not found")
-    # TODO: eager-load positions via selectinload for efficiency
     return FormationWithPositions.model_validate(formation)
 
 
-@router.post("/", response_model=FormationResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/", response_model=FormationWithPositions, status_code=status.HTTP_201_CREATED)
 async def create_formation(
     project_id: int,
     body: FormationCreate,
     db: AsyncSession = Depends(get_db),
-) -> FormationResponse:
-    """Create a new formation in the project timeline."""
+) -> FormationWithPositions:
+    """Create a new formation in the project timeline, optionally with initial positions."""
     await _get_project_or_404(project_id, db)
-    formation = Formation(project_id=project_id, **body.model_dump())
+
+    position_data = body.positions or []
+    formation_fields = body.model_dump(exclude={"positions"})
+    formation = Formation(project_id=project_id, **formation_fields)
     db.add(formation)
     await db.flush()
-    await db.refresh(formation)
-    return FormationResponse.model_validate(formation)
+
+    for pos in position_data:
+        db.add(DancerPosition(
+            formation_id=formation.id,
+            dancer_id=pos.dancer_id,
+            x=pos.x,
+            y=pos.y,
+        ))
+
+    await db.flush()
+
+    result = await db.execute(
+        select(Formation)
+        .options(selectinload(Formation.positions))
+        .where(Formation.id == formation.id)
+    )
+    formation = result.scalar_one()
+    return FormationWithPositions.model_validate(formation)
+
+
+@router.put("/reorder", response_model=List[FormationResponse])
+async def reorder_formations(
+    project_id: int,
+    body: ReorderRequest,
+    db: AsyncSession = Depends(get_db),
+) -> List[FormationResponse]:
+    """Bulk-reorder formations by providing an ordered list of IDs."""
+    await _get_project_or_404(project_id, db)
+
+    result = await db.execute(
+        select(Formation).where(Formation.project_id == project_id)
+    )
+    formations_by_id = {f.id: f for f in result.scalars().all()}
+
+    for new_index, fid in enumerate(body.formation_ids):
+        if fid not in formations_by_id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Formation {fid} not found in project {project_id}",
+            )
+        formations_by_id[fid].order_index = new_index
+
+    await db.flush()
+
+    result = await db.execute(
+        select(Formation)
+        .where(Formation.project_id == project_id)
+        .order_by(Formation.order_index)
+    )
+    return [FormationResponse.model_validate(f) for f in result.scalars().all()]
 
 
 @router.put("/{formation_id}", response_model=FormationResponse)
@@ -124,7 +176,6 @@ async def duplicate_formation(
     if not formation or formation.project_id != project_id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Formation not found")
 
-    # Get the highest order_index to place the duplicate at the end
     result = await db.execute(
         select(Formation.order_index)
         .where(Formation.project_id == project_id)
@@ -133,7 +184,6 @@ async def duplicate_formation(
     )
     max_order = result.scalar_one_or_none() or -1
 
-    # Create duplicate formation
     duplicate = Formation(
         project_id=project_id,
         name=f"{formation.name} (Copy)",
@@ -143,55 +193,22 @@ async def duplicate_formation(
     )
     db.add(duplicate)
     await db.flush()
-    await db.refresh(formation)  # Get the formation with ID
+    await db.refresh(duplicate)
 
-    # Import here to avoid circular imports
-    from models.position import DancerPosition
-
-    # Duplicate all positions
     result = await db.execute(
         select(DancerPosition).where(DancerPosition.formation_id == formation_id)
     )
     positions = result.scalars().all()
 
     for pos in positions:
-        duplicate_pos = DancerPosition(
+        db.add(DancerPosition(
             formation_id=duplicate.id,
             dancer_id=pos.dancer_id,
             x=pos.x,
-            y=pos.y
-        )
-        db.add(duplicate_pos)
+            y=pos.y,
+        ))
 
     await db.flush()
     await db.refresh(duplicate)
 
     return FormationResponse.model_validate(duplicate)
-
-
-@router.put("/reorder", response_model=List[FormationResponse])
-async def reorder_formations(
-    project_id: int,
-    body: ReorderRequest,
-    db: AsyncSession = Depends(get_db),
-) -> List[FormationResponse]:
-    """Bulk-reorder formations by providing an ordered list of IDs."""
-    await _get_project_or_404(project_id, db)
-
-    result = await db.execute(
-        select(Formation).where(Formation.project_id == project_id)
-    )
-    formations_by_id = {f.id: f for f in result.scalars().all()}
-
-    for new_index, fid in enumerate(body.formation_ids):
-        if fid not in formations_by_id:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Formation {fid} not found in project {project_id}",
-            )
-        formations_by_id[fid].order_index = new_index
-
-    await db.flush()
-
-    ordered = sorted(formations_by_id.values(), key=lambda f: f.order_index)
-    return [FormationResponse.model_validate(f) for f in ordered]

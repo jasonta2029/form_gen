@@ -1,10 +1,9 @@
 /**
  * ProjectEditor.jsx — The ultimate choreography sandbox workspace.
- * Ties StageGrid canvases, timeline controllers, dancer roster sheets, AI presets,
- * and audio markers sync tools together.
  */
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { Users, Sparkles, Scale, FileDown, FolderOpen } from 'lucide-react';
 import { useProject } from '../context/ProjectContext';
 import { useCenterTime } from '../hooks/useCenterTime';
 import StageGrid from '../components/stage/StageGrid';
@@ -16,6 +15,14 @@ import MusicTimeline from '../components/music/MusicTimeline';
 import ExportPanel from '../components/export/ExportPanel';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import exportApi from '../api/exportApi';
+import aiApi from '../api/ai';
+
+const TABS = [
+  { id: 'dancers', label: 'Roster',  Icon: Users },
+  { id: 'ai',      label: 'AI',      Icon: Sparkles },
+  { id: 'balance', label: 'Balance', Icon: Scale },
+  { id: 'export',  label: 'Export',  Icon: FileDown },
+];
 
 export const ProjectEditor = () => {
   const { id } = useParams();
@@ -32,55 +39,54 @@ export const ProjectEditor = () => {
     addDancer,
     removeDancer,
     createFormation,
+    deleteFormation,
+    duplicateFormation,
     updateDancerPositions
   } = useProject();
 
   const { stats, rebalance, refreshStats } = useCenterTime(id);
-  const [activeTab, setActiveTab] = useState('dancers'); // dancers | ai | balance | export
+  const [activeTab, setActiveTab] = useState('dancers');
   const [selectedDancerId, setSelectedDancerId] = useState(null);
 
   useEffect(() => {
-    if (id) {
-      loadProject(id);
-    }
+    if (id) loadProject(id);
   }, [id]);
 
   const handleDancerMove = (dancerId, newX, newY) => {
     if (!selectedFormation) return;
-    const updatedPos = (selectedFormation.positions || []).map((p) => {
-      if (p.dancer_id === dancerId) {
-        return { ...p, x: newX, y: newY };
-      }
-      return p;
-    });
+    const updatedPos = (selectedFormation.positions || []).map((p) =>
+      p.dancer_id === dancerId ? { ...p, x: newX, y: newY } : p
+    );
     updateDancerPositions(selectedFormation.id, updatedPos);
-    // Reload residency exposure stats
     setTimeout(refreshStats, 300);
   };
 
   const handleAddNewSnap = () => {
-    // Scaffold default locations for dancers
     const initialPos = dancers.map((d, i) => ({
       dancer_id: d.id,
       x: (i - (dancers.length - 1) / 2) * 2.0,
-      y: 0.0
+      y: 0.0,
     }));
     createFormation({
       name: `Snap ${formations.length + 1}`,
       timestamp_start: formations.length * 4.5,
       timestamp_end: (formations.length + 1) * 4.5,
-      positions: initialPos
+      positions: initialPos,
     });
   };
 
   const handleApplyGeometricTemplate = async (templateName, params) => {
     if (!selectedFormation) return;
     try {
-      const response = await client.post(`/projects/${id}/ai/template`, {
-        template_name: templateName,
-        params
+      // Backend returns a flat list of {dancer_id, x, y} indexed 1..N.
+      // Remap onto the formation's actual dancer IDs (by position order).
+      const templatePositions = await aiApi.generateFromTemplate(id, templateName, params);
+      const existing = selectedFormation.positions || [];
+      const remapped = templatePositions.map((tp, idx) => {
+        const orig = existing[idx];
+        return orig ? { ...orig, x: tp.x, y: tp.y } : tp;
       });
-      updateDancerPositions(selectedFormation.id, response.formation.positions);
+      updateDancerPositions(selectedFormation.id, remapped);
       setTimeout(refreshStats, 300);
     } catch (err) {
       console.error(err);
@@ -98,12 +104,12 @@ export const ProjectEditor = () => {
 
   return (
     <div className="min-h-screen bg-[#121214] text-white flex flex-col font-sans">
-      
+
       {/* Top Navbar */}
       <header className="bg-[#1a1a24] border-b border-[#23232f] px-6 py-4 flex items-center justify-between select-none">
         <div className="flex items-center space-x-5">
-          <h1 
-            onClick={() => navigate('/')} 
+          <h1
+            onClick={() => navigate('/')}
             className="text-xl font-black cursor-pointer tracking-tight"
           >
             Form<span className="text-[#ff2a7f]">Flow</span>
@@ -117,37 +123,34 @@ export const ProjectEditor = () => {
           </div>
         </div>
 
-        <button 
-          onClick={() => navigate('/')} 
-          className="text-xs bg-[#2b2b3a] hover:bg-[#34344d] px-3.5 py-1.5 rounded-lg border border-[#3e3e56]"
+        <button
+          onClick={() => navigate('/')}
+          className="flex items-center gap-2 text-xs bg-[#2b2b3a] hover:bg-[#34344d] px-3.5 py-1.5 rounded-lg border border-[#3e3e56] cursor-pointer transition-colors"
         >
-          🗂 Back to Projects
+          <FolderOpen size={13} />
+          Back to Projects
         </button>
       </header>
 
-      {/* Main Sandbox Grids split layouts */}
+      {/* Main workspace */}
       <main className="flex-1 grid grid-cols-12 p-6 gap-6 h-[calc(100vh-72px)] overflow-hidden">
-        
-        {/* Left Side column tool controls tabs panels (4 columns) */}
+
+        {/* Left panel — tabs */}
         <section className="col-span-4 flex flex-col space-y-4 overflow-hidden h-full">
-          {/* Tab selector buttons */}
-          <div className="grid grid-cols-4 gap-1.5 bg-[#171721] p-1 rounded-xl border border-[#23232f] select-none">
-            {[
-              { id: 'dancers', label: '👤 Roster' },
-              { id: 'ai', label: '✨ AI Preset' },
-              { id: 'balance', label: '⚖ Balance' },
-              { id: 'export', label: '📄 Export' }
-            ].map((tab) => (
+          {/* Tab bar */}
+          <div className="flex bg-[#171721] p-1 rounded-xl border border-[#23232f] select-none gap-1">
+            {TABS.map(({ id: tabId, label, Icon }) => (
               <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`py-2 rounded-lg text-[10px] font-bold uppercase transition-all ${
-                  activeTab === tab.id
-                    ? 'bg-[#ff2a7f] text-white'
-                    : 'bg-transparent text-[#b3b3cb] hover:bg-[#1a1a24]'
+                key={tabId}
+                onClick={() => setActiveTab(tabId)}
+                className={`flex-1 flex flex-col items-center gap-1 py-2.5 rounded-lg text-[10px] font-bold uppercase tracking-wide transition-all cursor-pointer ${
+                  activeTab === tabId
+                    ? 'bg-[#ff2a7f] text-white shadow'
+                    : 'bg-transparent text-[#6b6b8a] hover:text-[#b3b3cb] hover:bg-[#1e1e2c]'
                 }`}
               >
-                {tab.label}
+                <Icon size={14} />
+                {label}
               </button>
             ))}
           </div>
@@ -163,14 +166,12 @@ export const ProjectEditor = () => {
                 onSelectDancer={setSelectedDancerId}
               />
             )}
-
             {activeTab === 'ai' && (
               <AIPanel
                 dancersCount={dancers.length}
                 onApplyTemplate={handleApplyGeometricTemplate}
               />
             )}
-
             {activeTab === 'balance' && (
               <CenterTimePanel
                 stats={stats}
@@ -181,11 +182,10 @@ export const ProjectEditor = () => {
                 }}
               />
             )}
-
             {activeTab === 'export' && (
               <ExportPanel
                 activeFormationId={selectedFormationId}
-                onExportPDF={async (inc, sz) => {
+                onExportPDF={async (inc) => {
                   try {
                     const blob = await exportApi.exportAsPDF(id, inc);
                     const url = window.URL.createObjectURL(blob);
@@ -202,9 +202,8 @@ export const ProjectEditor = () => {
           </div>
         </section>
 
-        {/* Center stage workspace and timeline sequencing (8 columns) */}
+        {/* Right — stage + timeline */}
         <section className="col-span-8 flex flex-col space-y-4 overflow-y-auto h-full pr-1">
-          {/* Main Visual Stage canvas grid */}
           <div className="flex-1 min-h-[480px]">
             <StageGrid
               project={currentProject}
@@ -218,19 +217,19 @@ export const ProjectEditor = () => {
             />
           </div>
 
-          {/* Audio stream wave indicators markers syncing */}
           <MusicTimeline
             audioSrc={currentProject.audio_file_path}
             duration={60.0}
-            currentTime={selectedFormation ? selectedFormation.timestamp_start : 0.0}
+            currentTime={selectedFormation ? (selectedFormation.timestamp_start ?? 0) : 0.0}
           />
 
-          {/* Timelines Snapshots row */}
           <FormationTimeline
             formations={formations}
             selectedId={selectedFormationId}
             onSelect={setSelectedFormationId}
             onCreateNew={handleAddNewSnap}
+            onDuplicate={duplicateFormation}
+            onDelete={deleteFormation}
           />
         </section>
 
@@ -240,4 +239,3 @@ export const ProjectEditor = () => {
 };
 
 export default ProjectEditor;
-//

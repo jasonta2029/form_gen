@@ -7,10 +7,12 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import projectsApi from '../api/projects';
 import dancersApi from '../api/dancers';
 import formationsApi from '../api/formations';
+import { useToast } from './ToastContext';
 
 const ProjectContext = createContext(null);
 
 export const ProjectProvider = ({ children }) => {
+  const { showToast } = useToast();
   const [currentProject, setCurrentProject] = useState(null);
   const [dancers, setDancers] = useState([]);
   const [formations, setFormations] = useState([]);
@@ -53,9 +55,10 @@ export const ProjectProvider = ({ children }) => {
     try {
       const newDancer = await dancersApi.addDancer(currentProject.id, dancerData);
       setDancers(prev => [...prev, newDancer]);
+      showToast(`${newDancer.name} added to roster`, 'success');
       return newDancer;
     } catch (err) {
-      setError("Failed to add dancer.");
+      showToast('Failed to add dancer', 'error');
       throw err;
     }
   };
@@ -63,11 +66,13 @@ export const ProjectProvider = ({ children }) => {
   // Remove Dancer
   const removeDancer = async (dancerId) => {
     if (!currentProject) return;
+    const dancer = dancers.find(d => d.id === dancerId);
     try {
       await dancersApi.removeDancer(currentProject.id, dancerId);
       setDancers(prev => prev.filter(d => d.id !== dancerId));
+      showToast(`${dancer?.name || 'Dancer'} removed`, 'info');
     } catch (err) {
-      setError("Failed to remove dancer.");
+      showToast('Failed to remove dancer', 'error');
       throw err;
     }
   };
@@ -82,9 +87,45 @@ export const ProjectProvider = ({ children }) => {
       });
       setFormations(prev => [...prev, newFormation]);
       setSelectedFormationId(newFormation.id);
+      showToast(`"${newFormation.name}" snap created`, 'success');
       return newFormation;
     } catch (err) {
-      setError("Failed to create formation snapshot.");
+      showToast('Failed to create formation snap', 'error');
+      throw err;
+    }
+  };
+
+  // Delete Formation
+  const deleteFormation = async (formationId) => {
+    if (!currentProject) return;
+    const formation = formations.find(f => f.id === formationId);
+    try {
+      await formationsApi.deleteFormation(currentProject.id, formationId);
+      setFormations(prev => {
+        const filtered = prev.filter(f => f.id !== formationId);
+        if (selectedFormationId === formationId && filtered.length > 0) {
+          setSelectedFormationId(filtered[0].id);
+        }
+        return filtered;
+      });
+      showToast(`"${formation?.name || 'Snap'}" deleted`, 'info');
+    } catch (err) {
+      showToast('Failed to delete formation', 'error');
+      throw err;
+    }
+  };
+
+  // Duplicate Formation
+  const duplicateFormation = async (formationId) => {
+    if (!currentProject) return;
+    try {
+      const duplicate = await formationsApi.duplicateFormation(currentProject.id, formationId);
+      setFormations(prev => [...prev, duplicate]);
+      setSelectedFormationId(duplicate.id);
+      showToast(`"${duplicate.name}" created`, 'success');
+      return duplicate;
+    } catch (err) {
+      showToast('Failed to duplicate formation', 'error');
       throw err;
     }
   };
@@ -102,7 +143,7 @@ export const ProjectProvider = ({ children }) => {
     }));
 
     try {
-      await client.put(`/projects/${currentProject.id}/formations/${formationId}/positions`, {
+      await formationsApi.updateFormation(currentProject.id, formationId, {
         positions: updatedPositions
       });
     } catch (err) {
@@ -116,6 +157,7 @@ export const ProjectProvider = ({ children }) => {
       currentProject,
       dancers,
       formations,
+      setFormations,
       selectedFormationId,
       selectedFormation: getSelectedFormation(),
       setSelectedFormationId,
@@ -125,6 +167,8 @@ export const ProjectProvider = ({ children }) => {
       addDancer,
       removeDancer,
       createFormation,
+      deleteFormation,
+      duplicateFormation,
       updateDancerPositions,
       setError,
     }}>

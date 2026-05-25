@@ -18,7 +18,7 @@ export default defineConfig({
     open: true, // Auto-open browser on dev start
     proxy: {
       '/api': {
-        target: 'http://localhost:5000',
+        target: 'http://localhost:8000',
         changeOrigin: true,
         secure: false,
       },

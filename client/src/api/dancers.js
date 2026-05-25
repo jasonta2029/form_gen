@@ -56,3 +56,10 @@ export async function updateDancer(projectId, dancerId, data) {
 export async function removeDancer(projectId, dancerId) {
   return apiClient.delete(`/projects/${projectId}/dancers/${dancerId}`);
 }
+
+export default {
+  getDancers,
+  addDancer,
+  updateDancer,
+  removeDancer,
+};

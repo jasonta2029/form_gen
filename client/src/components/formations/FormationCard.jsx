@@ -47,7 +47,7 @@ export const FormationCard = ({
         </span>
         <h4 className="font-bold text-xs truncate text-white">{formation.name}</h4>
         <span className="text-[10px] text-[#b3b3cb] mt-1">
-          {formation.timestamp_start.toFixed(1)}s - {formation.timestamp_end.toFixed(1)}s
+          {(formation.timestamp_start ?? 0).toFixed(1)}s - {(formation.timestamp_end ?? 0).toFixed(1)}s
         </span>
       </div>
     </div>
